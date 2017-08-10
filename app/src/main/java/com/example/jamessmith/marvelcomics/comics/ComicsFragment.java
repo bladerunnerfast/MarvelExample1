@@ -1,92 +1,142 @@
 package com.example.jamessmith.marvelcomics.comics;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.graphics.Bitmap;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.support.v7.widget.DefaultItemAnimator;
-import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
+import android.util.DisplayMetrics;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Toast;
 
-import com.example.jamessmith.marvelcomics.MainActivity;
 import com.example.jamessmith.marvelcomics.R;
-import com.example.jamessmith.marvelcomics.api.model.Model;
-import com.example.jamessmith.marvelcomics.api.observable.CustomisedObservable;
-import com.example.jamessmith.marvelcomics.api.restful.CustomisedRestAdapter;
+import com.example.jamessmith.marvelcomics.backend.files.FileManager;
+import com.example.jamessmith.marvelcomics.backend.services.BackgroundService;
+
+import java.util.ArrayList;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
-import rx.Observer;
-import rx.android.schedulers.AndroidSchedulers;
-import rx.schedulers.Schedulers;
-
 
 public class ComicsFragment extends Fragment {
 
     private ComicAdapter comicAdapter;
+    private BroadcastReceiver broadcastReceiver;
+    private IntentFilter intentFilter;
+    private ArrayList<ComicModel> allParcelables;
 
     @BindView(R.id.rv_list) RecyclerView recyclerView;
 
     @Nullable
     @Override
-    public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+    public View onCreateView(final LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_comics, container, false);
         ButterKnife.bind(this, view);
 
-        String apiKey = "3659f42361a8687afaa755865d3fa9b4";
-        String hash = "6f28263d468665eea9bcf046c1417f93";
-        String ts = "1491431175";
+        Intent intent = new Intent(getContext(), BackgroundService.class);
+        intent.putExtra("requestedOperation", "comicsFragment");
+        getContext().startService(intent);
 
-        downloadData(ts, apiKey, hash);
+        DisplayMetrics metrics = new DisplayMetrics();
+        getActivity().getWindowManager().getDefaultDisplay().getMetrics(metrics);
+        int density = metrics.densityDpi;
+        int gridRowCount;
+
+        if (density == DisplayMetrics.DENSITY_HIGH) {
+            gridRowCount = 3;
+        }
+        else if (density == DisplayMetrics.DENSITY_MEDIUM) {
+           gridRowCount = 2;
+        }
+        else if (density == DisplayMetrics.DENSITY_LOW) {
+           gridRowCount = 1;
+        }
+        else {
+            gridRowCount = 1;
+        }
+
+        if(recyclerView != null){
+            recyclerView.setLayoutManager(new GridLayoutManager(getContext(), gridRowCount));
+            recyclerView.setItemAnimator(new DefaultItemAnimator());
+        }
+
+        intentFilter = new IntentFilter("updateComicFragment");
+
+        broadcastReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(final Context context, Intent intent) {
+                if (intent != null) {
+                    allParcelables = intent.getParcelableArrayListExtra("comicData");
+                    if (allParcelables != null) {
+                        new AsyncTask<Void, Void, Void>() {
+                            private Bitmap[] bitmaps = new Bitmap[allParcelables.size()];
+                            private FileManager fileManager = new FileManager(null, "image", context);
+                            private Bitmap bitmap;
+
+                            @Override
+                            protected Void doInBackground(Void... params) {
+
+                                    for (int i = 0; i < allParcelables.size(); i++) {
+                                        if(fileManager.getFile(allParcelables.get(i).getImageURI()) != null) {
+                                            bitmap = fileManager.getFile(allParcelables.get(i).getImageURI());
+                                            if(bitmap.getByteCount() > 0) {
+                                                bitmaps[i] = bitmap;
+                                            }
+                                        }
+                                    }
+                            return null;
+                        }
+
+                            @Override
+                            protected void onPostExecute(Void aVoid) {
+                                super.onPostExecute(aVoid);
+                                setRecyclerView(bitmaps, allParcelables);
+                            }
+
+                    }.execute();
+                    }
+                }
+            }
+        };
+        getContext().registerReceiver(broadcastReceiver, intentFilter);
 
         return view;
     }
 
-    private void downloadData(String ts, String apiKey, String hash) {
+    private void setRecyclerView(Bitmap[] bitmaps, ArrayList<ComicModel> descriptionModelList){
 
-        final CustomisedRestAdapter restfulClient =
-                new CustomisedRestAdapter();
-        CustomisedObservable api = restfulClient.getRest().build().create(CustomisedObservable.class);
-
-        restfulClient.getCompositeSubscription().add(api.getComics("100", ts, apiKey, hash)
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribeOn(Schedulers.newThread())
-                .subscribe(new Observer<Model>() {
-
-                    @Override
-                    public void onCompleted() {
-                        restfulClient.getCompositeSubscription().unsubscribe();
-                    }
-
-                    @Override
-                    public void onError(Throwable e) {
-                        if (e != null) {
-                            Log.v(MainActivity.class.getName(), e.toString());
-                            Toast.makeText(getContext(), "Failed to Obtain media data", Toast.LENGTH_SHORT).show();
-                            restfulClient.getCompositeSubscription().unsubscribe();
-                        }
-                    }
-
-                    @Override
-                    public void onNext(Model model) {
-                        setRecyclerView(model);
-                    }
-                })
-        );
+        comicAdapter = new ComicAdapter(bitmaps, descriptionModelList, getContext());
+        getActivity().runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                recyclerView.setAdapter(comicAdapter);
+            }
+        });
     }
 
-    private void setRecyclerView(Model model){
+    @Override
+    public void onStop() {
+        super.onStop();
 
-        if(recyclerView != null){
-            recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
-            recyclerView.setItemAnimator(new DefaultItemAnimator());
-        }
+        try {
+            getContext().unregisterReceiver(broadcastReceiver);
+        }catch(Exception e){}
+    }
 
-        comicAdapter = new ComicAdapter(model, getContext());
-        recyclerView.setAdapter(comicAdapter);
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+
+        try {
+            getContext().unregisterReceiver(broadcastReceiver);
+        }catch(Exception e){}
     }
 }

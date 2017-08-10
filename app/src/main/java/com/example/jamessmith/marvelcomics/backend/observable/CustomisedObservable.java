@@ -1,6 +1,6 @@
-package com.example.jamessmith.marvelcomics.api.observable;
+package com.example.jamessmith.marvelcomics.backend.observable;
 
-import com.example.jamessmith.marvelcomics.api.model.Model;
+import com.example.jamessmith.marvelcomics.backend.Model;
 
 import retrofit.http.GET;
 import retrofit.http.Query;

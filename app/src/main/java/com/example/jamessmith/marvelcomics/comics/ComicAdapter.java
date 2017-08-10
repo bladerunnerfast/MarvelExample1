@@ -2,6 +2,7 @@ package com.example.jamessmith.marvelcomics.comics;
 
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.support.v7.widget.CardView;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
@@ -10,9 +11,9 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import com.bumptech.glide.Glide;
 import com.example.jamessmith.marvelcomics.R;
-import com.example.jamessmith.marvelcomics.api.model.Model;
+
+import java.util.ArrayList;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -23,12 +24,16 @@ import butterknife.ButterKnife;
 
 public class ComicAdapter extends RecyclerView.Adapter<ComicAdapter.CustomViewHolder>{
 
-    protected Model model;
+    protected ArrayList<ComicModel> comicModels;
     private Context context;
+    private Bitmap[] bitmaps;
 
-    public ComicAdapter(Model model, Context context){
-        this.model = model;
+
+    public ComicAdapter(Bitmap[] bitmaps, ArrayList<ComicModel> comicModels, Context context){
+        this.comicModels = comicModels;
         this.context = context;
+        this.bitmaps = bitmaps;
+
     }
 
     @Override
@@ -40,26 +45,17 @@ public class ComicAdapter extends RecyclerView.Adapter<ComicAdapter.CustomViewHo
     @Override
     public void onBindViewHolder(CustomViewHolder holder, int position) {
 
-        if(model.getData().getResults().get(position).getComicImages() != null) {
-            if (model.getData().getResults().get(position).getComicImages().size() > 0) {
-                holder.image = model.getData().getResults().get(position).getThumbnail().getPath();
-                holder.extension = "." + model.getData().getResults().get(position).getThumbnail().getExtension();
-
-                Glide.with(context)
-                        .load(holder.image + holder.extension)
-                        .asBitmap()
-                        .centerCrop()
-                        .into(holder._thumbnail);
-            }
+        if(bitmaps != null) {
+            holder._thumbnail.setImageBitmap(bitmaps[position]);
         }
 
-        holder._title.setText(model.getData().getResults().get(position).getTitle());
-        holder._author.setText(model.getData().getResults().get(position).getUpc());
+        holder._title.setText(comicModels.get(position).getTitle());
+        holder._author.setText(String.valueOf(comicModels.get(position).getPrice()));
     }
 
     @Override
     public int getItemCount() {
-        return model.getData().getResults() == null ? 0 : model.getData().getResults().size();
+        return comicModels == null ? 0 : comicModels.size();
     }
 
     public static class CustomViewHolder extends RecyclerView.ViewHolder{
@@ -70,7 +66,6 @@ public class ComicAdapter extends RecyclerView.Adapter<ComicAdapter.CustomViewHo
         @BindView(R.id.card_view) CardView cardView;
 
         private Intent intent;
-        private String image, extension;
 
         private CustomViewHolder(View view, final Context context){
             super(view);
