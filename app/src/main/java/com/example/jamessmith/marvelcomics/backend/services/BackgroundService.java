@@ -61,7 +61,7 @@ public class BackgroundService extends Service {
                 index = 0;
             }
 
-            if((selectedBudget != null) && (selectedBudget.length() > 0)){
+            if((selectedBudget != null) && (selectedBudget.length() > 0) && (!("Cost").equals(selectedBudget))){
                 desiredBudget = Double.parseDouble(selectedBudget);
             }else{
                 desiredBudget = 0.00;

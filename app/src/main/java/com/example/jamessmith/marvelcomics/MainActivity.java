@@ -52,6 +52,7 @@ public class MainActivity extends AppCompatActivity {
         ButterKnife.bind(this);
 
         _price.clearFocus();
+        bottomSheet.setVisibility(View.INVISIBLE);
 
         if (!_price.hasFocus()) {
             _price.setText(getString(R.string.cost));
@@ -124,11 +125,14 @@ public class MainActivity extends AppCompatActivity {
     private void initFloatingButtonAction(){
         floatingActionButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
+
+                bottomSheet.setVisibility(View.VISIBLE);
                 if(bottomSheetBehavior.getState() == BottomSheetBehavior.STATE_EXPANDED){
                     bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
                 }else if(bottomSheetBehavior.getState() == BottomSheetBehavior.STATE_COLLAPSED){
                     if(bottomSheetBehavior.getState() == BottomSheetBehavior.STATE_HIDDEN){
-
+                        bottomSheet.setVisibility(View.VISIBLE);
+                        initBottomsheet();
                     }
                     bottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
                 }
@@ -170,14 +174,13 @@ public class MainActivity extends AppCompatActivity {
                 fragment.setRetainInstance(true);
                 break;
             case 1:
-                fragment = new ComicDescription();
-                bundle.putString("index", value);
-
                 if(bottomSheetBehavior.getState() == BottomSheetBehavior.STATE_EXPANDED){
-                    bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+                    bottomSheet.setVisibility(View.INVISIBLE);
                 }
 
                 floatingActionButton.setVisibility(View.INVISIBLE);
+                fragment = new ComicDescription();
+                bundle.putString("index", value);
                 break;
             default:
                 fragment = new ComicsFragment();
@@ -215,6 +218,7 @@ public class MainActivity extends AppCompatActivity {
             getFragmentManager().popBackStack();
         }else {
             super.onBackPressed();
+            floatingActionButton.setVisibility(View.VISIBLE);
         }
     }
 
