@@ -9,8 +9,8 @@ import android.util.Log;
 import android.widget.Toast;
 
 import com.example.jamessmith.marvelcomics.MainActivity;
-import com.example.jamessmith.marvelcomics.backend.Model;
 import com.example.jamessmith.marvelcomics.backend.api.adapter.CustomisedRestAdapter;
+import com.example.jamessmith.marvelcomics.backend.api.model.Model;
 import com.example.jamessmith.marvelcomics.backend.database.DatabaseModel;
 import com.example.jamessmith.marvelcomics.backend.database.DatabaseStorage;
 import com.example.jamessmith.marvelcomics.backend.files.FileManager;
@@ -21,7 +21,6 @@ import com.example.jamessmith.marvelcomics.description.DescriptionModel;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.concurrent.TimeUnit;
 
 import rx.Observer;
 import rx.android.schedulers.AndroidSchedulers;
@@ -33,22 +32,40 @@ import rx.schedulers.Schedulers;
 
 public class BackgroundService extends Service {
 
-    protected static final String apiKey = "3659f42361a8687afaa755865d3fa9b4";
-    protected static final String hash = "6f28263d468665eea9bcf046c1417f93";
-    protected static final String ts = "1491431175";
-    protected DatabaseStorage databaseStorage;
-    protected DatabaseModel databaseModel;
-    protected Model mModel;
+    private static final String apiKey = "3659f42361a8687afaa755865d3fa9b4";
+    private static final String hash = "6f28263d468665eea9bcf046c1417f93";
+    private static final String ts = "1491431175";
+
     private static final String TAG = BackgroundService.class.getName();
+
+    private DatabaseStorage databaseStorage;
+    private DatabaseModel databaseModel;
+    private Model mModel;
+
     private String requestedService;
-    private boolean isComplete = false;
+    private int index;
+    private double desiredBudget;
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
 
         if (intent != null) {
             requestedService = intent.getStringExtra("requestedOperation");
-            final int index = intent.getIntExtra("index", 0);
+            String indexString = intent.getStringExtra("index");
+            String selectedBudget = intent.getStringExtra("selectedPrice");
+            Log.v(TAG, "requested: " + requestedService);
+
+            if((indexString != null) && (indexString.length() > 0)){
+                index = Integer.valueOf(indexString);
+            }else{
+                index = 0;
+            }
+
+            if((selectedBudget != null) && (selectedBudget.length() > 0)){
+                desiredBudget = Double.parseDouble(selectedBudget);
+            }else{
+                desiredBudget = 0.00;
+            }
 
             Runnable runnable = new Runnable() {
                 @Override
@@ -61,13 +78,13 @@ public class BackgroundService extends Service {
                             if (verifiyUpdate()) {
                                 downloadData(ts, apiKey, hash);
                             }else {
-                                updateComics();
+                                updateComics(desiredBudget);
                             }
                         } else if ("DescriptionFragment".equals(requestedService)) {
-                            if (verifiyUpdate()) {
+                            if (!databaseStorage.isTableExists() && databaseStorage.countRows() < 1) {
                                 downloadData(ts, apiKey, hash);
                             }else {
-                                updateDescription(index + 2);
+                                updateDescription(index + 1);
                             }
                         }
                 }
@@ -82,20 +99,27 @@ public class BackgroundService extends Service {
     private boolean verifiyUpdate() {
 
         Calendar calendar = Calendar.getInstance();
-        long duration = databaseStorage.getLastModified() - calendar.getTimeInMillis();
-        long hours = TimeUnit.MILLISECONDS.toHours(duration);
-        Date date = new Date(hours);
+        long diff = calendar.getTimeInMillis() - databaseStorage.getLastModified();
+        Date diffDate = new Date(diff);
 
-        if ((databaseStorage.isTableExists()) && (databaseStorage.countRows() <= 0)) {
-            Log.v(TAG, "hours: " + databaseStorage.countRows());
-            return 300 > date.getHours();
-        } else {
+        if (databaseStorage.isTableExists()) {
+            if ((diffDate.getHours() <= 5) || (databaseStorage.countRows() < 1)) {
+                return true;
+            } else {
+                return false;
+            }
+        }else{
             return false;
         }
     }
 
-    private void updateComics() {
-        ArrayList<ComicModel> comicModels = databaseStorage.getComicData();
+    private void updateComics(double desiredBudget) {
+
+        if(desiredBudget <= 0.00){
+            desiredBudget = 999.99;
+        }
+
+        ArrayList<ComicModel> comicModels = databaseStorage.getComicData(desiredBudget);
 
         if (comicModels.size() > 0) {
 
@@ -108,6 +132,7 @@ public class BackgroundService extends Service {
 
     private void updateDescription(int indexValue) {
         DescriptionModel databaseModel = databaseStorage.getDescriptionData(indexValue);
+        Log.v(TAG, "index value: " + indexValue);
 
         if(databaseModel != null) {
 
@@ -136,7 +161,9 @@ public class BackgroundService extends Service {
 
                     @Override
                     public void onCompleted() {
-                        storeData();
+                        if(mModel.getData() != null) {
+                            storeData();
+                        }
                         restfulClient.getCompositeSubscription().unsubscribe();
                     }
 
@@ -157,23 +184,16 @@ public class BackgroundService extends Service {
         );
     }
 
-    private String getCreators(int i){
-        if(mModel.getData().getResults().get(i).getCreators().getItems().size() > 0){
-            return mModel.getData().getResults().get(i).getCreators().getItems().get(0).getName();
-        }else{
-            return "Not Available";
-        }
-    }
-
-    private boolean storeData(){
+    private void storeData(){
 
         new AsyncTask<Void, Void, Void>() {
             private String imageURL, thumbnailURL;
-            protected FileManager  fileManager;
+            FileManager  fileManager;
 
             @Override
             protected Void doInBackground(Void... params) {
 
+                if(mModel.getData() != null) {
                     for (int i = 0; i < getResultsSize(); i++) {
 
                         if (getComicImagesSize(i) > 0) {
@@ -184,14 +204,14 @@ public class BackgroundService extends Service {
 
                         fileManager = new FileManager(imageURL, "image", getApplicationContext());
 
-                        if(fileManager.saveFile()){
+                        if (fileManager.saveFile()) {
                             Log.v(TAG, "Saved images.");
                         }
 
                         thumbnailURL = getThumbnailPath(i) + "." + getThumbnailExtension(i);
                         fileManager = new FileManager(thumbnailURL, "thumbnail", getApplicationContext());
 
-                        if(fileManager.saveFile()){
+                        if (fileManager.saveFile()) {
                             Log.v(TAG, "saved thumbnails");
                         }
 
@@ -199,27 +219,25 @@ public class BackgroundService extends Service {
                                 getDescription(i), getPrice(i), thumbnailURL.substring(thumbnailURL.lastIndexOf('/') + 1),
                                 getPageCount(i), getCreators(i));
 
-                         if(databaseStorage.insertEntry(databaseModel)){
-                           Log.v(TAG, "Database sucessfuly updated");
-                        }else {
-                         Log.v(TAG, "Database update failed.");
+                        if (databaseStorage.insertEntry(databaseModel)) {
+                            Log.v(TAG, "Database sucessfuly updated");
+                        } else {
+                            Log.v(TAG, "Database update failed.");
                         }
                     }
+                }
 
-                    return null;
+                return null;
             }
             @Override
             protected void onPostExecute(Void dummy) {
-                isComplete = true;
-                updateComics();
+                updateComics(desiredBudget);
             }
         }.execute();
-
-        return isComplete;
         }
 
         private int getResultsSize(){
-            if(mModel.getData().getResults() != null) {
+            if(mModel.getData() != null) {
                 return mModel.getData().getResults().size();
             }else{
                 return 0;
@@ -239,15 +257,21 @@ public class BackgroundService extends Service {
         }
 
         private String getThumbnailPath(int i){
-            return mModel.getData().getResults().get(i).getThumbnail().getPath();
+                return mModel.getData().getResults().get(i).getThumbnail().getPath();
         }
 
         private String getThumbnailExtension(int i){
-            return mModel.getData().getResults().get(i).getThumbnail().getExtension();
+                return mModel.getData().getResults().get(i).getThumbnail().getExtension();
         }
 
         private String getTitle(int i){
-            return replaceBadSymbols(mModel.getData().getResults().get(i).getTitle());
+            String title = mModel.getData().getResults().get(i).getTitle();
+
+            if(title != null) {
+                return replaceBadSymbols(title);
+            }else{
+                return "Not Available";
+            }
         }
 
         private String getDescription(int i){
@@ -271,4 +295,12 @@ public class BackgroundService extends Service {
         private int getPageCount(int i){
             return mModel.getData().getResults().get(i).getPageCount();
         }
+
+        private String getCreators(int i){
+        if(mModel.getData().getResults().get(i).getCreators().getItems().size() > 0){
+            return mModel.getData().getResults().get(i).getCreators().getItems().get(0).getName();
+        }else{
+            return "Not Available";
+        }
+    }
 }

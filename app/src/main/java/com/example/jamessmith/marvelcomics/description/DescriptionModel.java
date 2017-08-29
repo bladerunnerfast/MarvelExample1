@@ -10,9 +10,12 @@ import android.os.Parcelable;
 public class DescriptionModel implements Parcelable {
 
 
-    private String imageURI, title, description, author;
-    private double price;
-    private int pageCount;
+    private final String imageURI;
+    private final String title;
+    private final String description;
+    private final String author;
+    private final double price;
+    private final int pageCount;
 
     public DescriptionModel(String imageURI, String title, String description, double price, int pageCount, String author) {
         this.imageURI = imageURI;
@@ -23,7 +26,7 @@ public class DescriptionModel implements Parcelable {
         this.author = author;
     }
 
-    public DescriptionModel(Parcel parcel) {
+    private DescriptionModel(Parcel parcel) {
         this.imageURI = parcel.readString();
         this.title = parcel.readString();
         this.description = parcel.readString();

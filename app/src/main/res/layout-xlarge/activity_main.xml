@@ -29,12 +29,13 @@
 
     <!-- Bottom Sheet Content -->
     <android.support.design.widget.CoordinatorLayout
-        android:layout_width="0dp"
-        android:layout_height="300dp"
-        app:layout_constraintLeft_toLeftOf="parent"
+        android:layout_width="801dp"
+        android:layout_height="1207dp"
+        android:layout_marginBottom="-3dp"
+        android:layout_marginLeft="0dp"
         app:layout_constraintBottom_toBottomOf="parent"
-        tools:layout_editor_absoluteY="0dp"
-        tools:layout_editor_absoluteX="8dp">
+        app:layout_constraintLeft_toLeftOf="parent"
+        tools:layout_editor_absoluteY="0dp">
 
         <include layout="@layout/custom_bottomsheet" />
     </android.support.design.widget.CoordinatorLayout>

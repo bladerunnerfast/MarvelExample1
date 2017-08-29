@@ -22,11 +22,11 @@ import java.util.concurrent.ExecutionException;
 
 public class FileManager {
 
-    private String path, imageURL;
-    private Context context;
+    private final String path;
+    private final String imageURL;
+    private final Context context;
     private Bitmap image;
-    private boolean hasSaved = false;
-    protected File file;
+    private File file;
 
     public FileManager(String imageURL, String imagePart, Context context) {
 
@@ -36,6 +36,8 @@ public class FileManager {
     }
 
     public boolean saveFile() {
+
+        boolean hasSaved;
 
         if (verifyDir()) {
             OutputStream outputStream;
@@ -55,7 +57,7 @@ public class FileManager {
                 hasSaved = true;
 
             } catch (IOException | InterruptedException | ExecutionException e) {
-                Log.v(FileManager.class.getName(), e.toString());
+                Log.v(FileManager.class.getName(), e.toString() + "image: " + imageURL);
                 hasSaved = false;
             }
         }else{
@@ -99,7 +101,7 @@ public class FileManager {
 
                 } catch (final ExecutionException | InterruptedException e) {
             image = null;
-            Log.e(FileManager.class.getName(), e.getMessage());
+            Log.e(FileManager.class.getName(), e.getMessage() + " path: " + file.getAbsolutePath());
         }
         return image;
     }

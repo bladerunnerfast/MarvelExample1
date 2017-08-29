@@ -4,6 +4,7 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteException;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
 
@@ -12,6 +13,7 @@ import com.example.jamessmith.marvelcomics.description.DescriptionModel;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Calendar;
 
 /**
  * Created by James on 10/08/2017.
@@ -32,9 +34,9 @@ public class DatabaseStorage extends SQLiteOpenHelper{
     private static final String pageCount = "pageCount";
     private static final String author = "author";
 
-    protected Cursor cursor;
-    protected SQLiteDatabase database;
-    private Context context;
+    private Cursor cursor;
+    private SQLiteDatabase database;
+    private final Context context;
 
     private static final String sql = "CREATE TABLE " + TABLENAME +"(" + id + " INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL," +
             title + " TEXT,"+ image + " TEXT," + description + " TEXT," + price + " FLOAT," + thumbnail + " TEXT," +
@@ -45,46 +47,79 @@ public class DatabaseStorage extends SQLiteOpenHelper{
         this.context = context;
     }
 
+    /**
+     * DropTable
+     * For Testing purposes only.
+     */
     public void dropTable(){//For Testing purposes only.
-        context.deleteDatabase(DATABASE_NAME);;
+        context.deleteDatabase(DATABASE_NAME);
     }
 
     public boolean isTableExists() {
         boolean isExist = false;
-        database = this.getReadableDatabase();
-        Cursor cursor = database.rawQuery("select DISTINCT tbl_name from sqlite_master where tbl_name = '" + TABLENAME + "'", null);
 
-        if(database.isOpen()) {
-            if (cursor != null) {
-                if (cursor.getCount() > 0) {
-                    isExist = true;
+        try {
+
+            database = this.getReadableDatabase();
+
+            if(database.isOpen()) {
+                Cursor cursor = database.rawQuery("select DISTINCT tbl_name from sqlite_master where tbl_name = '" +
+                    TABLENAME + "'", null);
+
+                if ((cursor != null) && (!cursor.isClosed())){
+                    if (cursor.getCount() > 0) {
+                        isExist = true;
+                    }else{
+                        isExist = false;
+                    }
                 }
+            }
+
+        }catch(SQLiteException e){
+            Log.v(DatabaseStorage.class.getName(), e.toString());
+        }finally{
+            if(database != null) {
+                if (database.isOpen()) {
+                    database.close();
+                }
+            }
+            if((cursor != null) && (!cursor.isClosed())){
                 cursor.close();
             }
         }
+
         return isExist;
     }
 
     public int countRows() {
 
         String SQLQuery = "SELECT COUNT(" + id + ") FROM " + TABLENAME;
-        SQLiteDatabase db = this.getWritableDatabase();
-        Cursor cursor = db.rawQuery(SQLQuery, null);
-        cursor.moveToFirst();
-        int count = cursor.getInt(0);
-        cursor.close();
-        db.close();
+        database = this.getReadableDatabase();
+        int count = 0;
+
+        if(database.isOpen()) {
+            Cursor cursor = database.rawQuery(SQLQuery, null);
+
+            if(cursor != null && !cursor.isClosed()){
+                cursor.moveToFirst();
+                count = cursor.getInt(0);
+                Log.v(DatabaseStorage.class.getName(), "count: " + count);
+                cursor.close();
+                database.close();
+            }else {
+                count = 0;
+            }
+        }
         return count;
     }
 
     public long getLastModified(){
-        File dbpath = context.getDatabasePath(DATABASE_NAME);
-        return dbpath.lastModified();
+        File dbPath = context.getDatabasePath(DATABASE_NAME);
+        return dbPath.lastModified();
     }
 
     @Override
     public void onCreate(SQLiteDatabase sqLiteDatabase) {
-        Log.v(DatabaseStorage.class.getName(), sql);
         sqLiteDatabase.execSQL(sql);
     }
 
@@ -104,63 +139,67 @@ public class DatabaseStorage extends SQLiteOpenHelper{
         if(database.isOpen()){
             cursor = database.rawQuery(selectSql, null);
             if(cursor != null) {
-                if (cursor.isLast()) {
-                    cursor.moveToFirst();
-                }
+                if(cursor.getCount() <= 0){
+                    if (cursor.isLast()) {
+                        cursor.moveToFirst();
+                    }
 
-                if (database.isReadOnly()) {
-                    database = this.getWritableDatabase();
-                }
+                    if (database.isReadOnly()) {
+                        database = this.getWritableDatabase();
+                    }
 
-                contentValues.put(title, databaseModel.getTitle());
-                contentValues.put(image, databaseModel.getImageURL());
-                contentValues.put(description, databaseModel.getDescription());
-                contentValues.put(price, databaseModel.getPrice());
-                contentValues.put(thumbnail, databaseModel.getThumbnail());
-                contentValues.put(pageCount, databaseModel.getPageCount());
-                contentValues.put(author, databaseModel.getAuthor());
-                long result = database.insert(TABLENAME, null, contentValues);
+                    contentValues.put(title, databaseModel.getTitle());
+                    contentValues.put(image, databaseModel.getImageURL());
+                    contentValues.put(description, databaseModel.getDescription());
+                    contentValues.put(price, databaseModel.getPrice());
+                    contentValues.put(thumbnail, databaseModel.getThumbnail());
+                    contentValues.put(pageCount, databaseModel.getPageCount());
+                    contentValues.put(author, databaseModel.getAuthor());
+                    long result = database.insert(TABLENAME, null, contentValues);
 
-                cursor.close();
-                database.close();
-                contentValues.clear();
+                    cursor.close();
+                    database.close();
+                    contentValues.clear();
 
-                if(result == -1) {
-                    return false;
-                }
-                else {
-                    return true;
+                    if (result != -1) {
+                        setLastModified();
+                    }
+
+                    return result != -1;
                 }
             }
         }
         return false;
     }
 
-    public ArrayList<ComicModel> getComicData() {
+    public ArrayList<ComicModel> getComicData(double desiredBudget) {
         ComicModel comicModel;
         ArrayList<ComicModel> parcelables = new ArrayList<>();
-
         database = this.getReadableDatabase();
 
         if (database.isOpen()) {
 
-            final String getDataSql = "SELECT " + thumbnail + ", " + title + "," + price +  " FROM " + TABLENAME;
+            final String getDataSql = "SELECT " + thumbnail + ", " + title + "," + price +  " FROM " + TABLENAME +
+                    " WHERE " + price +"<='" + desiredBudget + "'";
             cursor = database.rawQuery(getDataSql, null);
 
-            if (cursor != null) {
+            if ((cursor != null) && (!cursor.isClosed())){
 
                 if (cursor.isLast()) {
                     cursor.moveToFirst();
                 }
 
-                if (!cursor.moveToFirst() || cursor.getCount() > 0) {
+                try{
+                if (cursor.getCount() > 0) {
                     while (cursor.moveToNext()) {
                         comicModel = new ComicModel(cursor.getString(cursor.getColumnIndex(thumbnail)),
                                 cursor.getString(cursor.getColumnIndex(title)),
                                 cursor.getDouble(cursor.getColumnIndex(price)));
                         parcelables.add(comicModel);
                     }
-
+                }
+            }catch(SQLiteException e){}
+                finally {
                     cursor.close();
                     database.close();
                 }
@@ -180,11 +219,7 @@ public class DatabaseStorage extends SQLiteOpenHelper{
                     "," + author + " FROM " + TABLENAME + " WHERE id='" + indexValue + "'";
             cursor = database.rawQuery(getDataSql, null);
 
-            if (cursor != null) {
-
-                if (cursor.isLast()) {
-                    cursor.moveToFirst();
-                }
+            if ((cursor != null) && (!cursor.isClosed())){
 
                 if (!cursor.moveToFirst() || cursor.getCount() > 0) {
                     descriptionModel = new DescriptionModel(cursor.getString(cursor.getColumnIndex(thumbnail)),
@@ -200,5 +235,11 @@ public class DatabaseStorage extends SQLiteOpenHelper{
             }
         }
         return descriptionModel;
+    }
+
+    private void setLastModified(){
+        File dbPath = context.getDatabasePath(DATABASE_NAME);
+        Calendar getCurrentTimeStamp = Calendar.getInstance();
+        dbPath.setLastModified(getCurrentTimeStamp.getTimeInMillis());
     }
 }

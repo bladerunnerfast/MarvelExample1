@@ -8,13 +8,13 @@ package com.example.jamessmith.marvelcomics.backend.database;
 public class DatabaseModel {
 
     private String id;
-    private String title ;
-    private String imageURL;
+    private final String title ;
+    private final String imageURL;
     private String description;
-    private double price;
-    private String thumbnail;
-    private int pageCount;
-    private String author;
+    private final double price;
+    private final String thumbnail;
+    private final int pageCount;
+    private final String author;
 
     public DatabaseModel(String title, String imageURL, String description, double price, String thumbnail,
                          int pageCount, String author) {
@@ -32,36 +32,8 @@ public class DatabaseModel {
         this.id = id;
     }
 
-    public void setTitle(String title) {
-        this.title = title;
-    }
-
-    public void setImage(String imageURL) {
-        this.imageURL = imageURL;
-    }
-
     public void setDescription(String description) {
         this.description = description;
-    }
-
-    public void setPrice(double price) {
-        this.price = price;
-    }
-
-    public void setThumbnail(String thumbnail) {
-        this.thumbnail = thumbnail;
-    }
-
-    public void setPageCount(int pageCount) {
-        this.pageCount = pageCount;
-    }
-
-    public void setAuthor(String author) {
-        this.author = author;
-    }
-
-    public DatabaseModel() {
-
     }
 
     public String getId() {

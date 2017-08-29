@@ -9,8 +9,9 @@ import android.os.Parcelable;
 
 public class ComicModel implements Parcelable {
 
-    private String imageURI, title;
-    double price;
+    private final String imageURI;
+    private final String title;
+    private final double price;
 
     public ComicModel(String imageURI, String title, double price) {
         this.imageURI = imageURI;
@@ -42,7 +43,7 @@ public class ComicModel implements Parcelable {
         dest.writeDouble(this.price);
     }
 
-    protected ComicModel(Parcel in) {
+    private ComicModel(Parcel in) {
         this.imageURI = in.readString();
         this.title = in.readString();
         this.price = in.readDouble();

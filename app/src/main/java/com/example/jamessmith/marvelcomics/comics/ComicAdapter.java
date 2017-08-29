@@ -24,16 +24,14 @@ import butterknife.ButterKnife;
 
 public class ComicAdapter extends RecyclerView.Adapter<ComicAdapter.CustomViewHolder>{
 
-    protected ArrayList<ComicModel> comicModels;
-    private Context context;
-    private Bitmap[] bitmaps;
-
+    private final ArrayList<ComicModel> comicModels;
+    private final Context context;
+    private final Bitmap[] bitmaps;
 
     public ComicAdapter(Bitmap[] bitmaps, ArrayList<ComicModel> comicModels, Context context){
         this.comicModels = comicModels;
         this.context = context;
         this.bitmaps = bitmaps;
-
     }
 
     @Override
@@ -50,7 +48,7 @@ public class ComicAdapter extends RecyclerView.Adapter<ComicAdapter.CustomViewHo
         }
 
         holder._title.setText(comicModels.get(position).getTitle());
-        holder._author.setText(String.valueOf(comicModels.get(position).getPrice()));
+        holder._author.setText("Price: " + String.valueOf(comicModels.get(position).getPrice()));
     }
 
     @Override
@@ -65,7 +63,7 @@ public class ComicAdapter extends RecyclerView.Adapter<ComicAdapter.CustomViewHo
         @BindView(R.id.tv_author) TextView _author;
         @BindView(R.id.card_view) CardView cardView;
 
-        private Intent intent;
+        private final Intent intent;
 
         private CustomViewHolder(View view, final Context context){
             super(view);
@@ -77,7 +75,7 @@ public class ComicAdapter extends RecyclerView.Adapter<ComicAdapter.CustomViewHo
                 @Override
                 public void onClick(View view) {
                     intent.setAction("updateMain");
-                    intent.putExtra("indexValue", getAdapterPosition());
+                    intent.putExtra("indexValue", String.valueOf(getAdapterPosition()));
                     context.sendBroadcast(intent);
                 }
             });
