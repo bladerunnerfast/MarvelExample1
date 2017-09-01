@@ -41,7 +41,7 @@ public class MainActivity extends AppCompatActivity {
     @BindView(R.id.btn_refine) Button _refineBtn;
     @BindView(R.id.fab) FloatingActionButton floatingActionButton;
     @BindView(R.id.bottomSheetLayout) RelativeLayout bottomSheet;
-    @BindView(R.id.bottomSheetHeading)TextView bottomSheetHeading;
+    @BindView(R.id.bottomSheetHeading) TextView bottomSheetHeading;
 
     private BottomSheetBehavior bottomSheetBehavior;
 
