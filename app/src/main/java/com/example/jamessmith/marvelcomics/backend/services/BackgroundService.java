@@ -32,6 +32,7 @@ import rx.schedulers.Schedulers;
 
 public class BackgroundService extends Service {
 
+
     private static final String apiKey = "3659f42361a8687afaa755865d3fa9b4";
     private static final String hash = "6f28263d468665eea9bcf046c1417f93";
     private static final String ts = "1491431175";
